@@ -1,130 +1,323 @@
-# PatientVault — Patient Records Manager
+# 🏥 PatientVault
 
-A patient records manager built with **object-oriented Python** on top of **SQLite**.
-It models a small clinical domain (patients, diagnoses, visits), stores it in a real
-relational database, and exposes everything through a menu-driven CLI.
+### Patient Records Manager built with Python + SQLite
 
-No third-party dependencies — only the Python standard library.
+A clean, object-oriented patient records management system built with **Python** and **SQLite**.
 
-> **Disclaimer:** this is an educational project. It has no authentication,
-> no encryption and no audit log. **Do not store real patient data in it.**
-> All names in the demo data are fictional.
+PatientVault models a small clinical domain — **patients, diagnoses, and visits** — stores everything in a real relational database, and provides a simple **menu-driven CLI** for managing records.
+
+> ⚠️ **Educational project only.**
+> PatientVault has no authentication, encryption, or audit logging.
+> **Do not store real patient data in this application.**
+> All demo names and data are fictional.
 
 ---
 
-## Architecture
+<p align="center">
 
-The project is a small three-layer application. Each layer only talks to the one below it:
+![Python](https://img.shields.io/badge/Python-3.8%2B-blue?logo=python\&logoColor=white)
+![SQLite](https://img.shields.io/badge/Database-SQLite-003B57?logo=sqlite\&logoColor=white)
+![Tests](https://img.shields.io/badge/Tests-78%20passing-success)
+![Dependencies](https://img.shields.io/badge/Dependencies-None-brightgreen)
+![License](https://img.shields.io/badge/License-Educational-lightgrey)
 
+</p>
+
+---
+
+## ✨ Features
+
+### 👤 Patient Management
+
+* Add patients
+* Find patients by ID
+* Update patient information
+* Delete patients
+* List all patients
+* Sort by name, age, or ID
+* Case-insensitive partial name search
+
+### 🩺 Clinical Records
+
+* Add visits to patients
+* List patient visits
+* Delete visits
+* Store diagnoses
+* Automatic visit count tracking
+* Last visit information
+
+### 🗄️ Database
+
+* SQLite persistence
+* Foreign key relationships
+* `ON DELETE CASCADE`
+* Parameterized SQL queries
+* Database indexes
+* Automatic database directory creation
+
+### 📊 Statistics
+
+* Average patient age
+* Minimum and maximum age
+* Total number of patients
+* Total number of visits
+* Average visits per patient
+* Patients with zero visits
+* Busiest patient
+* Most common diagnoses
+
+### 📤 Data Export
+
+* Export patients to CSV
+* Export visits to CSV
+* Export complete vault to JSON
+* Export statistics to JSON
+
+### 🧪 Testing
+
+* **78 unit tests**
+* Python built-in `unittest`
+* In-memory SQLite databases
+* Temporary folders for file-based tests
+* No external test runner required
+
+---
+
+# 🏗️ Architecture
+
+PatientVault follows a simple **three-layer architecture**.
+
+Each layer communicates only with the layer directly below it.
+
+```text
+                    ┌─────────────────────┐
+                    │       cli.py        │
+                    │  User interaction   │
+                    │  Menu & input       │
+                    └──────────┬──────────┘
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │      models.py      │
+                    │  Patient & Visit    │
+                    │  Domain rules       │
+                    └──────────┬──────────┘
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │   repository.py    │
+                    │   CRUD & SQL        │
+                    │   SQLite access     │
+                    └──────────┬──────────┘
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │       SQLite        │
+                    │      Database       │
+                    └─────────────────────┘
 ```
-        cli.py            collects input, prints tables — no domain rules
-          ↓
-      models.py           Patient, Visit — the domain and its rules
-          ↓
-   repository.py          the only module that knows SQL exists
-          ↓
-        SQLite
+
+### Validation Layer
+
+`validation.py` sits beside the domain models.
+
+It is called from model property setters, meaning invalid objects are rejected **before they ever reach the database**.
+
+```text
+User Input
+    │
+    ▼
+   CLI
+    │
+    ▼
+Validation
+    │
+    ├──── Invalid ────► ValidationError
+    │
+    ▼
+ Patient / Visit
+    │
+    ▼
+Repository
+    │
+    ▼
+ SQLite
 ```
 
-`validation.py` sits beside the models and is called from their property setters, so an
-invalid `Patient` or `Visit` object cannot be created in the first place — bad data is
-rejected long before it reaches the database.
+---
 
-### Classes
+# 🧩 Core Classes
 
-| Class | Responsibility |
-| --- | --- |
-| `Patient` | Name, age, diagnoses and the visits that belong to them. Validates on every assignment via properties. |
-| `Visit` | One appointment: date, reason, notes. Always belongs to exactly one patient. |
-| `PatientRepository` | All CRUD, search and statistics. Takes and returns objects, never rows. Usable as a context manager. |
+| Class               | Responsibility                                             |
+| ------------------- | ---------------------------------------------------------- |
+| `Patient`           | Represents a patient with name, age, diagnoses, and visits |
+| `Visit`             | Represents an appointment belonging to exactly one patient |
+| `PatientRepository` | Handles CRUD, search, statistics, and database access      |
 
-**Encapsulation** — state lives in private attributes (`_name`, `_age`, `_visits`) behind
-properties, so `patient.age = 200` raises `ValidationError` instead of corrupting the record.
-`patient.diagnoses` and `patient.visits` return tuples, so callers cannot mutate internals
-by accident.
+---
 
-**Composition** — a `Patient` *has* `Visit` objects. Visits have no independent life:
-deleting a patient deletes their visits, enforced by the database itself with
-`ON DELETE CASCADE`.
+## 🔒 Encapsulation
 
-### Database schema
+Domain state is stored in private attributes and exposed through properties.
+
+```python
+patient.age = 200
+```
+
+Instead of allowing invalid data, the model raises:
+
+```text
+ValidationError
+```
+
+This prevents invalid domain objects from being created.
+
+Additionally:
+
+```python
+patient.diagnoses
+patient.visits
+```
+
+return immutable tuples, preventing callers from accidentally modifying internal state.
+
+---
+
+## 🧱 Composition
+
+A `Patient` **has** `Visit` objects.
+
+A visit belongs to exactly one patient.
+
+```text
+Patient
+   │
+   ├── Visit
+   ├── Visit
+   └── Visit
+```
+
+Visits do not have an independent lifecycle.
+
+When a patient is deleted, their visits are automatically deleted by SQLite using:
+
+```sql
+ON DELETE CASCADE
+```
+
+---
+
+# 🗃️ Database Schema
 
 ```sql
 CREATE TABLE patients (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     name       TEXT    NOT NULL,
     age        INTEGER NOT NULL CHECK (age >= 0 AND age <= 130),
-    diagnoses  TEXT    NOT NULL DEFAULT '[]',   -- JSON list
+    diagnoses  TEXT    NOT NULL DEFAULT '[]',
     created_at TEXT    NOT NULL
 );
 
 CREATE TABLE visits (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     patient_id INTEGER NOT NULL,
-    visit_date TEXT    NOT NULL,                -- ISO 8601, YYYY-MM-DD
+    visit_date TEXT    NOT NULL,
     reason     TEXT    NOT NULL,
     notes      TEXT    NOT NULL DEFAULT '',
     created_at TEXT    NOT NULL,
-    FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE
+
+    FOREIGN KEY (patient_id)
+        REFERENCES patients(id)
+        ON DELETE CASCADE
 );
 
-CREATE INDEX idx_patients_name    ON patients(name);
-CREATE INDEX idx_visits_patient_id ON visits(patient_id);
+CREATE INDEX idx_patients_name
+    ON patients(name);
+
+CREATE INDEX idx_visits_patient_id
+    ON visits(patient_id);
 ```
 
-Two design notes:
+### 💡 Design Decisions
 
-- **Diagnoses are stored as a JSON list in a `TEXT` column.** A separate `diagnoses` table
-  would be the fully normalised choice; a JSON column keeps the project readable and is
-  enough for the queries here. The trade-off is that diagnosis counting happens in Python
-  (`_top_diagnoses`) instead of in SQL.
-- **`PRAGMA foreign_keys = ON` is set on every connection.** SQLite does *not* enforce
-  foreign keys by default, so without it the cascade delete would silently do nothing.
+#### Diagnoses
 
-### Error handling
+Diagnoses are stored as a JSON list inside a `TEXT` column.
 
-Every deliberate error inherits from `PatientVaultError`:
-
+```json
+["Asthma", "Seasonal allergy"]
 ```
+
+A fully normalized design would use a separate `diagnoses` table.
+
+For this educational project, JSON keeps the implementation simple and readable.
+
+**Trade-off:** diagnosis statistics are calculated in Python rather than directly in SQL.
+
+#### Foreign Keys
+
+SQLite does not enforce foreign keys by default.
+
+PatientVault explicitly enables them on every connection:
+
+```sql
+PRAGMA foreign_keys = ON;
+```
+
+This ensures that cascade deletes work correctly.
+
+---
+
+# 🚨 Error Handling
+
+All deliberate application errors inherit from:
+
+```text
 PatientVaultError
-├── ValidationError        bad input
+```
+
+The hierarchy is:
+
+```text
+PatientVaultError
+├── ValidationError
+│   └── Invalid user input
+│
 ├── NotFoundError
 │   ├── PatientNotFoundError
 │   └── VisitNotFoundError
-└── RepositoryError        SQL / file system failure
+│
+└── RepositoryError
+    └── SQL / file system failure
 ```
 
-`sqlite3.Error` never escapes the repository — it is translated into `RepositoryError`.
-The CLI catches `PatientVaultError` in one place, prints a readable message and returns to
-the menu, so a typo never produces a traceback.
+Database-level `sqlite3.Error` exceptions never escape the repository layer.
+
+Instead, they are translated into:
+
+```python
+RepositoryError
+```
+
+The CLI catches the base exception:
+
+```python
+PatientVaultError
+```
+
+This allows all expected application errors to be handled consistently without exposing Python tracebacks to the user.
 
 ---
 
-## Features
+# 🚀 Setup
 
-**Core**
+### Requirements
 
-- Add, find, update and delete patients (full CRUD)
-- Add and delete visits per patient
-- List all patients, sorted by name, age or id
-- Case-insensitive partial search by name
-- SQLite persistence with cascade deletes
-- Menu-driven CLI with per-field re-prompting on invalid input
+* Python **3.8+**
+* No third-party dependencies
+* SQLite included with Python
 
-**Extras**
-
-- Validation layer shared by the models and the CLI
-- Export to CSV (patients, visits) and JSON (whole vault + stats)
-- Statistics: average age, age range, visits per patient, busiest patient, top diagnoses
-- 78 unit tests (`unittest`, no external runner needed)
-- Config-driven database path: `--db` flag, environment variable, or default
-- `--seed` flag with demo data for a first look
-
----
-
-## Setup
-
-Requires **Python 3.8+**. Nothing else to install.
+Clone the repository:
 
 ```bash
 git clone https://github.com/<your-username>/patientvault.git
@@ -135,53 +328,103 @@ Optionally create a virtual environment:
 
 ```bash
 python -m venv .venv
-# Windows
+```
+
+### Windows
+
+```powershell
 .venv\Scripts\activate
-# macOS / Linux
+```
+
+### macOS / Linux
+
+```bash
 source .venv/bin/activate
 ```
 
+No additional packages are required.
+
 ---
 
-## Usage
+# ▶️ Usage
 
-Run from the project root:
+Run the application from the project root:
 
 ```bash
 python -m src.main
 ```
 
-On Windows, if `python` is not on your PATH, use the launcher: `py -m src.main`.
+On Windows, if `python` is not available:
 
-Useful flags:
+```powershell
+py -m src.main
+```
+
+### Available Commands
+
+Start with demo data:
 
 ```bash
-python -m src.main --seed              # start with demo patients (only if the vault is empty)
-python -m src.main --db data/demo.db   # use a different database file
-python -m src.main --db :memory:       # throwaway database, nothing is saved
+python -m src.main --seed
+```
+
+Use a custom database:
+
+```bash
+python -m src.main --db data/demo.db
+```
+
+Use a temporary in-memory database:
+
+```bash
+python -m src.main --db :memory:
+```
+
+Show version:
+
+```bash
 python -m src.main --version
+```
+
+Show help:
+
+```bash
 python -m src.main --help
 ```
 
-### Where the database lives
+---
 
-The path is resolved in this order — first match wins:
+# 🗂️ Database Location
 
-1. `--db PATH` on the command line
-2. the `PATIENTVAULT_DB` environment variable
-3. `data/patients.db` (default; the folder is created automatically)
+PatientVault resolves the database path in the following order:
+
+```text
+1. --db PATH
+       ↓
+2. PATIENTVAULT_DB environment variable
+       ↓
+3. data/patients.db
+```
+
+The first available option is used.
+
+### Windows PowerShell
+
+```powershell
+$env:PATIENTVAULT_DB = "C:\vaults\clinic.db"
+```
+
+### macOS / Linux
 
 ```bash
-# Windows PowerShell
-$env:PATIENTVAULT_DB = "C:\vaults\clinic.db"
-
-# macOS / Linux
 export PATIENTVAULT_DB=~/vaults/clinic.db
 ```
 
-### Example session
+---
 
-```
+# 💻 Example Session
+
+```text
 ==============================================================
   PatientVault 1.0.0 — patient records manager
   Database: data/patients.db
@@ -203,21 +446,34 @@ export PATIENTVAULT_DB=~/vaults/clinic.db
   11) Export data (CSV / JSON)
    0) Exit
 --------------------------------------------------------------
+
 Choose an option: 1
 
-  New patient
-  Name: Anna Grigoryan
-  Age: abc
-  Age must be a whole number, got 'abc'.
-  Age: 34
-  Diagnoses (comma separated, optional): Asthma, Seasonal allergy
+New patient
 
-  Saved: #1 Anna Grigoryan, age 34 · diagnoses: Asthma, Seasonal allergy · visits: 0
+Name: Anna Grigoryan
+Age: abc
+
+Age must be a whole number, got 'abc'.
+
+Age: 34
+
+Diagnoses (comma separated, optional):
+Asthma, Seasonal allergy
+
+Saved:
+
+#1 Anna Grigoryan
+Age: 34
+Diagnoses: Asthma, Seasonal allergy
+Visits: 0
 ```
 
-Listing patients:
+---
 
-```
+# 📋 Patient List
+
+```text
     ID  NAME                      AGE  VISITS  DIAGNOSES
   --------------------------------------------------------------
      3  Mariam Sargsyan             8       1  Otitis media
@@ -228,18 +484,24 @@ Listing patients:
   4 patient(s).
 ```
 
-Statistics:
+---
 
-```
+# 📊 Statistics
+
+```text
   Statistics
   --------------------------------------------------------------
+
   Patients:               4
   Visits:                 6
   Average age:            38.5
   Age range:              8 – 67
   Avg visits / patient:   1.5
   Patients with 0 visits: 1
-  Most visits:            David Petrosyan (#2) — 3
+
+  Most visits:
+    David Petrosyan (#2) — 3
+
   Top diagnoses:
     - asthma: 1
     - hypertension: 1
@@ -248,57 +510,105 @@ Statistics:
     - type 2 diabetes: 1
 ```
 
-### Using the repository from your own code
+---
 
-The repository works standalone — the CLI is just one possible front end:
+# 🐍 Using the Repository Programmatically
+
+The repository is independent from the CLI and can be used directly from Python code.
 
 ```python
 from src.models import Patient, Visit
 from src.repository import PatientRepository
 
+
 with PatientRepository("data/patients.db") as repo:
-    anna = repo.add_patient(Patient(name="Anna Grigoryan", age=34, diagnoses="Asthma"))
-    repo.add_visit(Visit(patient_id=anna.id, visit_date="2026-05-12", reason="Check-up"))
+
+    anna = repo.add_patient(
+        Patient(
+            name="Anna Grigoryan",
+            age=34,
+            diagnoses="Asthma"
+        )
+    )
+
+    repo.add_visit(
+        Visit(
+            patient_id=anna.id,
+            visit_date="2026-05-12",
+            reason="Check-up"
+        )
+    )
 
     loaded = repo.get_patient(anna.id)
-    print(loaded.visit_count, loaded.last_visit_date)   # 1 2026-05-12
+
+    print(loaded.visit_count)
+    print(loaded.last_visit_date)
+```
+
+Output:
+
+```text
+1
+2026-05-12
 ```
 
 ---
 
-## Tests
+# 🧪 Tests
+
+Run the complete test suite:
 
 ```bash
 python -m unittest discover -s tests -t . -v
 ```
 
-78 tests covering the validation rules, both models, every repository method, the
-cascade delete, the exporters and the seed data. They run against `:memory:` databases and
-temporary folders, so they never touch your real vault.
+The project contains **78 unit tests** covering:
+
+* Validation rules
+* `Patient` model
+* `Visit` model
+* Repository methods
+* CRUD operations
+* Cascade deletes
+* Exporters
+* Seed data
+
+Tests use:
+
+* In-memory SQLite databases
+* Temporary directories
+* Python's built-in `unittest`
+
+Your real database is never touched by the test suite.
 
 ---
 
-## Project structure
+# 📁 Project Structure
 
-```
+```text
 patientvault/
+│
 ├── src/
 │   ├── __init__.py
-│   ├── main.py           entry point, argument parsing
-│   ├── cli.py            menu loop, prompts, tables
-│   ├── models.py         Patient, Visit
-│   ├── repository.py     SQLite layer (the only module with SQL)
-│   ├── validation.py     input rules shared by models and CLI
-│   ├── exporters.py      CSV / JSON export
-│   ├── config.py         database path resolution
-│   └── seed.py           optional demo data
+│   ├── main.py           # Application entry point
+│   ├── cli.py            # Menu, prompts and output
+│   ├── models.py         # Patient and Visit models
+│   ├── repository.py     # SQLite access and SQL queries
+│   ├── validation.py     # Shared validation rules
+│   ├── exporters.py      # CSV and JSON exports
+│   ├── config.py         # Database path resolution
+│   └── seed.py           # Demo data
+│
 ├── tests/
 │   ├── __init__.py
 │   ├── test_validation.py
 │   ├── test_models.py
 │   ├── test_repository.py
 │   └── test_exporters.py
-├── data/                 patients.db lives here (git-ignored)
+│
+├── data/
+│   └── patients.db       # Git-ignored database
+│
 ├── requirements.txt
 ├── .gitignore
 └── README.md
@@ -306,11 +616,95 @@ patientvault/
 
 ---
 
-## What I practised
+# 🎯 What I Practised
 
-- Modelling a domain with classes, properties and composition
-- Keeping validation in one place and enforcing it at the boundary of the objects
-- The repository pattern: separating domain objects from storage
-- SQL CRUD, foreign keys, cascade deletes, indexes and parameterised queries
-- Turning library exceptions into a meaningful, catchable error hierarchy
-- Writing unit tests against an in-memory database
+Building PatientVault helped me practise:
+
+* 🐍 Object-Oriented Programming with Python
+* 🧩 Classes, properties, and encapsulation
+* 🔗 Composition between domain objects
+* 🗄️ SQLite and relational databases
+* 📝 SQL CRUD operations
+* 🔐 Foreign keys and cascade deletes
+* ⚡ Database indexes
+* 🛡️ Parameterized SQL queries
+* 🏗️ Repository Pattern
+* 🚨 Custom exception hierarchies
+* ✅ Input validation
+* 🧪 Unit testing with `unittest`
+* 📦 In-memory database testing
+* 📤 CSV and JSON data export
+* ⚙️ CLI argument parsing
+* 🔧 Environment-based configuration
+
+---
+
+# 🧠 Key Architecture Concepts
+
+```text
+                USER
+                  │
+                  ▼
+             CLI Layer
+                  │
+                  ▼
+            Domain Models
+                  │
+                  ▼
+         Repository Pattern
+                  │
+                  ▼
+              SQLite
+```
+
+The main design goal was to keep responsibilities separated:
+
+> **CLI handles interaction.**
+> **Models handle domain rules.**
+> **Repository handles persistence.**
+> **SQLite handles storage.**
+
+This makes the application easier to test, maintain, and extend.
+
+---
+
+# ⚠️ Disclaimer
+
+PatientVault is an **educational software project** and is **not intended for real clinical use**.
+
+It does not provide:
+
+* Authentication
+* Authorization
+* Encryption
+* Audit logging
+* HIPAA/GDPR compliance
+* Production-grade security
+
+**Never store real patient or medical data in this application.**
+
+All patient names and demo data are fictional.
+
+---
+
+# 📌 Project Status
+
+**Status:** Completed ✅
+
+**Version:** `1.0.0`
+
+**Tests:** `78 passing`
+
+**Dependencies:** None
+
+**Database:** SQLite
+
+**Language:** Python 3.8+
+
+---
+
+<p align="center">
+
+Built with 🐍 Python and 🗄️ SQLite
+
+</p>
