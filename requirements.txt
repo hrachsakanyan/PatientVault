@@ -1,0 +1,6 @@
+# PatientVault has no third-party dependencies.
+# Everything it uses ships with Python 3.8+:
+#   sqlite3, csv, json, argparse, unittest, pathlib, datetime
+#
+# This file is kept so the project follows the usual Python layout and so
+# `pip install -r requirements.txt` succeeds on a fresh clone.

@@ -1,0 +1,2 @@
+This folder holds the SQLite database at runtime (data/patients.db).
+The database itself is git-ignored — see .gitignore.
