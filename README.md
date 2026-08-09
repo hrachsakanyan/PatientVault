@@ -639,7 +639,7 @@ Building PatientVault helped me practise:
 
 ---
 
-# 🧠 Key Architecture Concepts
+# Key Architecture Concepts
 
 ```text
                 USER
