@@ -394,7 +394,7 @@ python -m src.main --help
 
 ---
 
-# 🗂️ Database Location
+# 🗂️ Database Location 
 
 PatientVault resolves the database path in the following order:
 
