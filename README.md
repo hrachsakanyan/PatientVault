@@ -240,7 +240,7 @@ CREATE INDEX idx_visits_patient_id
 
 ### 💡 Design Decisions
 
-#### Diagnoses
+#### Diagnoses 
 
 Diagnoses are stored as a JSON list inside a `TEXT` column.
 
