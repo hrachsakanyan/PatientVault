@@ -1,4 +1,4 @@
-# 🏥 PatientVault 
+# 🏥 PatientVault
 
 ### Patient Records Manager built with Python + SQLite 
 
