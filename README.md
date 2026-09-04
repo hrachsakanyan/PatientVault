@@ -1,6 +1,6 @@
 # 🏥 PatientVault
 
-### Patient Records Manager built with Python + SQLite 
+### Patient Records Manager built with Python + SQLite
 
 A clean, object-oriented patient records management system built with **Python** and **SQLite**.
 
